@@ -3,10 +3,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 st.set_page_config(page_title="CineMatch AI | Taste Analyzer", page_icon="🎬", layout="wide")
+
+def get_config(key, default=None):
+    """Reads from st.secrets if a secrets.toml exists (Streamlit Cloud),
+    otherwise falls back to a real environment variable (Render, Docker, etc.).
+    st.secrets raises StreamlitSecretNotFoundError if no secrets file exists at
+    all, so it must be wrapped in try/except rather than used with .get()."""
+    try:
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
 # NOTE: On Streamlit Community Cloud there is no local server.py process running,
 # so this must point at a separately deployed backend URL (set via Secrets or env var).
 # Locally it still falls back to 127.0.0.1:8000 for convenience.
-BACKEND_URL = st.secrets.get("BACKEND_URL", os.getenv("BACKEND_URL", "http://127.0.0.1:8000"))
+BACKEND_URL = get_config("BACKEND_URL", "http://127.0.0.1:8000")
 
 for key in ["selected_rec", "rec_data_cache", "analysis_cache", "show_more"]:
     if key not in st.session_state: st.session_state[key] = False if key == "show_more" else None
@@ -105,7 +118,7 @@ def map_taste_parameters(genres):
     return {k: min(v, 100) for k, v in m.items()}
 
 def query_gemini(prompt):
-    api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
+    api_key = get_config("GEMINI_API_KEY")
     if not api_key: return "⚠️ Setup Error: `GEMINI_API_KEY` is missing. Add it under Settings → Secrets on Streamlit Cloud."
     last_error = None
     for model in ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"]:
