@@ -196,7 +196,7 @@ if st.session_state.analysis_cache:
         st.markdown("#### 🧠 User Movie Taste Profile Summary")
         st.markdown(st.session_state.analysis_cache)
     with top_r:
-        st.markdown("<h4 style='margin:0 0 10px 0;'>📊 Parametric Vector Distribution Mapping</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='margin:0 0 10px 0;'>📊 User Movie preference Mapping</h4>", unsafe_allow_html=True)
         fig = px.line_polar(pd.DataFrame({'Dim': list(user_metrics.keys()), 'Val': list(user_metrics.values())}), r='Val', theta='Dim', line_close=True, range_r=[0, 100], color_discrete_sequence=['#FF4B4B'])
         fig.update_traces(fill='toself', fillcolor='rgba(255, 75, 75, 0.2)', line=dict(width=3, color='#FF4B4B'))
         fig.update_layout(polar=dict(radialaxis=dict(visible=True, showticklabels=False, gridcolor='rgba(255,255,255,0.08)', linecolor='rgba(0,0,0,0)'), angularaxis=dict(gridcolor='rgba(255,255,255,0.08)', color='#94a3b8', tickfont=dict(size=10, family='Plus Jakarta Sans')), bgcolor="rgba(0,0,0,0)"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False, height=240, margin=dict(l=45, r=45, t=15, b=15))
