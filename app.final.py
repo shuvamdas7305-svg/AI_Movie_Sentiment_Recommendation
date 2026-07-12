@@ -1,23 +1,12 @@
-import sys
-import subprocess
-
-# Automated User-Space Dependency Resolver for Streamlit Cloud
-try:
-    import plotly.express as px
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", "plotly"])
-    import plotly.express as px
-
-import streamlit as st
-import requests
-import pandas as pd
-import os
+import streamlit as st, requests, pandas as pd, plotly.express as px, os
 from dotenv import load_dotenv
 
-# Your remaining code starts here...
 load_dotenv()
 st.set_page_config(page_title="CineMatch AI | Taste Analyzer", page_icon="🎬", layout="wide")
-BACKEND_URL = "http://127.0.0.1:8000"
+# NOTE: On Streamlit Community Cloud there is no local server.py process running,
+# so this must point at a separately deployed backend URL (set via Secrets or env var).
+# Locally it still falls back to 127.0.0.1:8000 for convenience.
+BACKEND_URL = st.secrets.get("BACKEND_URL", os.getenv("BACKEND_URL", "http://127.0.0.1:8000"))
 
 for key in ["selected_rec", "rec_data_cache", "analysis_cache", "show_more"]:
     if key not in st.session_state: st.session_state[key] = False if key == "show_more" else None
@@ -116,14 +105,17 @@ def map_taste_parameters(genres):
     return {k: min(v, 100) for k, v in m.items()}
 
 def query_gemini(prompt):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key: return "⚠️ Setup Error: `GEMINI_API_KEY` is missing."
+    api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
+    if not api_key: return "⚠️ Setup Error: `GEMINI_API_KEY` is missing. Add it under Settings → Secrets on Streamlit Cloud."
+    last_error = None
     for model in ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"]:
         try:
             res = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}", json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
             if res.status_code == 200: return res.json()['candidates'][0]['content']['parts'][0]['text']
-        except: pass
-    return "🚨 Generation Cluster Timeout. Failed to fetch narrative metrics."
+            last_error = f"{model} -> HTTP {res.status_code}: {res.text[:200]}"
+        except Exception as e:
+            last_error = f"{model} -> {e}"
+    return f"🚨 Generation Cluster Timeout. Failed to fetch narrative metrics. ({last_error})"
 
 
 
@@ -195,7 +187,7 @@ if st.session_state.analysis_cache:
         fig = px.line_polar(pd.DataFrame({'Dim': list(user_metrics.keys()), 'Val': list(user_metrics.values())}), r='Val', theta='Dim', line_close=True, range_r=[0, 100], color_discrete_sequence=['#FF4B4B'])
         fig.update_traces(fill='toself', fillcolor='rgba(255, 75, 75, 0.2)', line=dict(width=3, color='#FF4B4B'))
         fig.update_layout(polar=dict(radialaxis=dict(visible=True, showticklabels=False, gridcolor='rgba(255,255,255,0.08)', linecolor='rgba(0,0,0,0)'), angularaxis=dict(gridcolor='rgba(255,255,255,0.08)', color='#94a3b8', tickfont=dict(size=10, family='Plus Jakarta Sans')), bgcolor="rgba(0,0,0,0)"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False, height=240, margin=dict(l=45, r=45, t=15, b=15))
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("### 🎬 Custom-Tailored Cinematic Match Rankings")
@@ -216,7 +208,7 @@ if st.session_state.analysis_cache:
                 rec_id = f"movie_{idx}"
                 card_class = "movie-card card-active" if (st.session_state.selected_rec == rec_id) else "movie-card"
                 st.markdown(f'<div class="{card_class}"><h4 style="margin:0 0 4px 0; color:#fff;">#{idx} {item["movie_title"]} <span style="font-size:0.85rem; color:#64748b;">({item["release_year"]})</span></h4><p style="margin:0; font-size:0.88rem; color:#94a3b8;">⭐ Rating: <b style="color:#fff;">{item["rating"]}/10</b> | <span>{item["genre"]}</span></p></div>', unsafe_allow_html=True)
-                if st.button(f"Inspect Analysis #{idx}", key=f"btn_{rec_id}", use_container_width=True):
+                if st.button(f"Inspect Analysis #{idx}", key=f"btn_{rec_id}", width='stretch'):
                     st.session_state.selected_rec = rec_id
                     st.rerun()
                     
@@ -226,7 +218,7 @@ if st.session_state.analysis_cache:
                 btn_label = "Show Less Recommendations" if st.session_state.show_more else "Discover More Recommendations"
                 
                 st.markdown('<div class="more-rec-btn">', unsafe_allow_html=True)
-                if st.button(btn_label, key="toggle_overflow_pool", use_container_width=True):
+                if st.button(btn_label, key="toggle_overflow_pool", width='stretch'):
                     st.session_state.show_more = not st.session_state.show_more
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -238,7 +230,7 @@ if st.session_state.analysis_cache:
                         rec_id = f"movie_{ex_idx}"
                         card_class = "movie-card card-active" if (st.session_state.selected_rec == rec_id) else "movie-card-faded"
                         st.markdown(f'<div class="{card_class}"><h4 style="margin:0 0 4px 0; color:#cbd5e1;">#{ex_idx} {item["movie_title"]} <span style="font-size:0.82rem; color:#475569;">({item["release_year"]})</span></h4><p style="margin:0; font-size:0.84rem; color:#64748b;">⭐ Rating: <b style="color:#94a3b8;">{item["rating"]}/10</b> | <span style="color:#475569;">{item["genre"]}</span></p></div>', unsafe_allow_html=True)
-                        if st.button(f"Inspect Analysis #{ex_idx}", key=f"btn_{rec_id}", use_container_width=True):
+                        if st.button(f"Inspect Analysis #{ex_idx}", key=f"btn_{rec_id}", width='stretch'):
                             st.session_state.selected_rec = rec_id
                             st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -263,7 +255,7 @@ if st.session_state.analysis_cache:
                     )
                 st.markdown(f'<div class="detail-text-body">{deep_insights}</div><div style="margin-bottom: 14px;"></div>', unsafe_allow_html=True)
                 
-                if st.button("Close Detailed Inspection Panel ✕", use_container_width=True):
+                if st.button("Close Detailed Inspection Panel ✕", width='stretch'):
                     st.session_state.selected_rec = None
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
