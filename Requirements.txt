@@ -7,3 +7,5 @@ numpy
 joblib
 streamlit
 requests
+plotly
+python-dotenv
