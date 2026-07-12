@@ -1,11 +1,11 @@
 import sys
 import subprocess
 
-# Automated Inline Dependency Resolver for Streamlit Cloud
+# Automated User-Space Dependency Resolver for Streamlit Cloud
 try:
     import plotly.express as px
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "plotly"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", "plotly"])
     import plotly.express as px
 
 import streamlit as st
