@@ -1,6 +1,20 @@
-import streamlit as st, requests, pandas as pd, plotly.express as px, os
+import sys
+import subprocess
+
+# Automated Inline Dependency Resolver for Streamlit Cloud
+try:
+    import plotly.express as px
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "plotly"])
+    import plotly.express as px
+
+import streamlit as st
+import requests
+import pandas as pd
+import os
 from dotenv import load_dotenv
 
+# Your remaining code starts here...
 load_dotenv()
 st.set_page_config(page_title="CineMatch AI | Taste Analyzer", page_icon="🎬", layout="wide")
 BACKEND_URL = "http://127.0.0.1:8000"
